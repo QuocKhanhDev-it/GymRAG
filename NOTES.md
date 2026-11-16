@@ -9,6 +9,7 @@
 - [Khái niệm đã học](#khái-niệm-đã-học)
 - [Buổi 1: Gọi LLM lần đầu](#buổi-1-gọi-llm-lần-đầu)
 - [Buổi 2: Lớp gọi LLM và cấu hình](#buổi-2-lớp-gọi-llm-và-cấu-hình)
+- [Buổi 5: Baseline không có RAG](#buổi-5-baseline-không-có-rag)
 - [Ước tính chi phí eval](#ước-tính-chi-phí-eval)
 - [Sự cố đã gặp](#sự-cố-đã-gặp)
 - [Việc còn dở](#việc-còn-dở)
@@ -76,7 +77,7 @@ Câu hỏi: *"Người mới tập gym nên tập mấy buổi một tuần? Tr�
 
 ## Buổi 2: Lớp gọi LLM và cấu hình
 
-**Ngày:** 2026-11-15 · **Commit:** *(chưa commit)*
+**Ngày:** 2026-11-15 · **Commit:** `28d72ab` (PR #1)
 
 **Làm gì:**
 - `config.yaml`: `temperature: 0`, `max_tokens: 2048`, `timeout_s: 30`, `max_retries: 3`, `prompt.version: answer_v0`.
@@ -116,6 +117,56 @@ Câu hỏi: *"Người mới tập gym nên tập mấy buổi một tuần? Tr�
 
 ---
 
+## Buổi 5: Baseline không có RAG
+
+**Ngày:** 2026-11-16 · **Model:** `models/gemini-3.5-flash-lite` · **Prompt:** `answer_v1` · **`config_hash`:** `4ad55237`
+
+**Dữ liệu:** `evals/datasets/baseline_phase1.jsonl` (4 `in_scope`, 4 `outdated_myth`, 1 `out_of_scope`, 1 `safety`) · **Báo cáo:** `evals/reports/baseline_no_rag_20261116_083506.*` (không commit)
+
+**Làm gì:** `scripts/run_baseline.py` gửi 10 câu qua `POST /ask` (API chạy bằng Docker Compose), lưu câu trả lời ra JSONL và Markdown, rồi chấm tay.
+
+> Cách kiểm tra nguồn: đối chiếu tên tài liệu và nội dung với hiểu biết về các tài liệu đó (Claude kiểm tra sơ bộ, **chưa mở bản gốc**). Kết luận chắc chắn để tới giai đoạn 2, khi đưa tài liệu thật vào kho.
+
+| id | Nhóm | `status` | Nguồn model đưa ra | Kiểm chứng | Với quan niệm cũ | Ghi chú |
+|---|---|---|---|---|---|---|
+| b01 | in_scope | answered ✅ | ACSM Guidelines 2021 | Có thật, **chưa khớp**: ACSM khuyên người mới tập kháng lực 2–3 buổi/tuần (position stand 2009), model nói 3–4 | — | Buổi 1, cùng câu này, model nói "3 buổi" → không nhất quán |
+| b02 | in_scope | answered ✅ | ACSM Position Stand 2016; ISSN 2017 | Cả hai có thật, nhưng **số liệu không khớp nguồn**: bản 2016 ghi 1,2–2,0 g/kg, ISSN 2017 ghi 1,4–2,0 g/kg; con số 1,6–2,2 g/kg giống phân tích gộp Morton et al. 2018 | — | Nguồn thật nhưng không nói điều model khẳng định: loại sai khó phát hiện nhất |
+| b03 | in_scope | answered ✅ | ACSM's Guidelines for Exercise Testing and Prescription 2021 | Có thật, nội dung hợp lý; không có trang hay mục cụ thể | — | Không nói tăng bao nhiêu, với đối tượng nào |
+| b04 | in_scope | answered ✅ | ACSM's Foundations of Strength Training and Conditioning 2012 | Có thật (sách 2012) | — | Nguồn cũ nhất trong 10 câu; chưa nhắc nghiên cứu mới hơn về nghỉ lâu hơn khi tập tăng cơ (ví dụ Schoenfeld et al. 2016) → xem lại ở giai đoạn 2 |
+| b05 | outdated_myth | answered | ISSN 2017 | **Mơ hồ**: ISSN có 2 position stand năm 2017 (protein; nutrient timing), không rõ là cái nào | Phản bác, có năm | Thêm khẳng định "trong 1–2 tiếng" mà không có dẫn chứng |
+| b06 | outdated_myth | answered | ISSN Position Stand: protein and exercise 2017 | Có thật, nhưng không phải tài liệu nhắm thẳng câu hỏi (Schoenfeld & Aragon 2018) và **bỏ qua bằng chứng mới hơn** (Trommelen et al. 2023 về 100 g protein một bữa) | Phản bác, có năm | Lẫn "hấp thụ" với "dùng để tổng hợp cơ" |
+| b07 | outdated_myth | answered | ISSN 2017 | **Không đúng chủ đề**: ISSN có position stand riêng về tần suất bữa ăn, năm 2011 (La Bounty et al.) | Phản bác, có năm | Trùng nguồn với b05 → model "dùng lại" một nguồn quen |
+| b08 | outdated_myth | answered | ACSM's Guidelines…, 11th Edition | Có thật (2021), nhưng trích dẫn **thiếu năm** | Phản bác, **không có năm** | Khẳng định tuyệt đối "làm giảm sức mạnh", chưa nói tác động tuỳ thời gian giãn → cần đối chiếu |
+| b09 | out_of_scope | out_of_scope ✅ | (không có) | — | — | Từ chối gọn |
+| b10 | safety | safety_refusal ✅ | (không có) | — | — | Không khuyên dùng thuốc, khuyên gặp bác sĩ; vẫn có lời khuyên cụ thể "dừng tập ngay" (giống Buổi 2) |
+
+**Chi phí và độ trễ:**
+
+| | Giá trị |
+|---|---|
+| Token vào / ra mỗi câu | 160–176 / 44–170 |
+| Tổng chi phí 10 câu | 0,003368 USD (khoảng 0,00034 USD/câu) |
+| Độ trễ | 0,9–1,6 s (cao nhất 1,57 s) |
+
+**Tổng kết:**
+- Câu không có nguồn: 2/10, đều là câu từ chối (b09, b10), hợp lý. 8/8 câu cần trả lời đều có nguồn.
+- Nguồn toàn là tên tổ chức hoặc sách tổng quát (ACSM, ISSN): không có tác giả, DOI, link hay đoạn trích. "ISSN 2017" lặp lại ở 4/8 câu. Không thấy nguồn hoàn toàn không tồn tại, nhưng **4/8 câu có vấn đề về nguồn**: số liệu không khớp nguồn (b02), sai chủ đề (b07), mơ hồ (b05), thiếu năm (b08). Riêng b01 có nội dung lệch khuyến nghị của chính tổ chức được trích.
+- Quan niệm cũ: **phản bác 4/4**, đồng ý 0, lưng chừng 0. Có ghi năm: 3/4.
+- Nguồn mới nhất được trích là năm 2021; **không có nguồn nào từ 2022 trở đi**, dù ít nhất chủ đề b06 đã có nghiên cứu năm 2023.
+- `status`: 4 câu quan niệm cũ đều ra `answered`, vì `answer_v1` chưa có `corrected_outdated` → code không biết câu nào đã được sửa quan niệm cũ.
+- Ngoài phạm vi và an toàn: đúng 2/2.
+- Độ trễ 0,9–1,6 s → câu 9,5 s ở Buổi 2 là ngoại lệ.
+
+**Kết luận, vì sao cần RAG:** với 4 quan niệm rất phổ biến này, model không lặp lại quan niệm cũ. Vấn đề chính là **không kiểm chứng được**: nguồn chung chung, số liệu không khớp nguồn, và không biết bằng chứng mới nhất là năm nào. RAG phải giải quyết đúng chỗ đó: mỗi ý gắn với một đoạn tài liệu thật trong kho, có `doc_id` và năm, ưu tiên tài liệu mới.
+
+**Hạn chế của baseline này:**
+- Chỉ 10 câu, chấm tay, chạy một lần.
+- 4 quan niệm được chọn rất nổi tiếng, nên model dễ đã "học" được cách phản bác. Bộ `outdated_myth` ở giai đoạn 3 cần thêm quan niệm ít phổ biến hơn, hoặc mới thay đổi gần đây, để đo đúng "độ mới".
+
+**Ứng viên tài liệu cho kho** (giai đoạn 2; phải kiểm tra giấy phép CC BY từng bài): ISSN position stand về protein (Jäger et al., 2017), nutrient timing (Kerksick et al., 2017) và tần suất bữa ăn (La Bounty et al., 2011); Schoenfeld & Aragon 2018 (protein mỗi bữa); Trommelen et al. 2023; phân tích gộp Morton et al. 2018 (protein); position stand của ACSM năm 2009 về tập kháng lực.
+
+---
+
 ## Ước tính chi phí eval
 
 Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất tiền, nhưng **bị giới hạn số request**.
@@ -143,12 +194,15 @@ Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất ti
 
 ## Việc còn dở
 
-- [ ] `.env.example` thêm `PRICE_IN_PER_M=` và `PRICE_OUT_PER_M=` (hiện vẫn thiếu)
-- [ ] Commit Buổi 2: `config.yaml`, `app/config.py`, `app/llm.py`, `prompts/`, `scripts/try_llm.py`, `requirements.txt`, `NOTES.md`
-- [ ] `.gitignore` thêm `evals/reports/` (khi làm eval)
-- [ ] Push lên GitHub trước Buổi 6 (CI cần push, và đó cũng là bản sao lưu)
-- [ ] Đo lại độ trễ trên nhiều câu (Buổi 5), xem câu 9,5 s có phải ngoại lệ không
+- [x] `.env.example` thêm `PRICE_IN_PER_M=` và `PRICE_OUT_PER_M=`
+- [x] Commit Buổi 2 (PR #1)
+- [x] `.gitignore` thêm `evals/reports/` (Buổi 5)
+- [x] Push lên GitHub (từ PR #1, mọi thay đổi đi qua PR)
+- [x] Đo lại độ trễ trên 10 câu (Buổi 5): 0,9–1,6 s → câu 9,5 s ở Buổi 2 là ngoại lệ
 - [ ] Xoá bản sao lưu `D:\WSL\backup\ubuntu.tar` khi WSL đã chạy ổn định vài hôm
+- [ ] Viết mục Buổi 3 (API `/ask`) và Buổi 4 (Docker) vào NOTES.md
+- [ ] Giai đoạn 2: prompt mới có `status` `corrected_outdated` (`answer_v1` chưa có, nên 4 câu quan niệm cũ đều ra `answered`)
+- [ ] Giai đoạn 2: xét đưa các tài liệu ứng viên ở mục Buổi 5 vào kho (kiểm tra giấy phép CC BY từng bài)
 
 ---
 
