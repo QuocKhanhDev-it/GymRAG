@@ -1,0 +1,15 @@
+services:
+  api:
+    build: .
+    image: gymrag-api:dev
+    env_file: .env              # secrets injected at runtime, never baked into the image
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      # slim image has no curl, so use Python's stdlib
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

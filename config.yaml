@@ -1,9 +1,9 @@
-# Tham số chạy. Mọi thay đổi ở đây đi qua commit (sau này là PR + eval).
+# Runtime tunables. Every change goes through a commit (later: PR + eval).
 llm:
-  temperature: 0        # 0 = ổn định, cần cho eval
-  max_tokens: 2048      # trần token ra (gồm cả token suy nghĩ) để chặn chi phí
+  temperature: 0        # 0 = stable output, needed for eval
+  max_tokens: 2048      # cap on output tokens (incl. thinking) to bound cost
   timeout_s: 30
   max_retries: 3
 
 prompt:
-  version: answer_v0    # file prompts/answer_v0.txt
+  version: answer_v1    # prompts/answer_v1.txt
