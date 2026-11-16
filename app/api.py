@@ -1,4 +1,5 @@
 """HTTP API: /health and /ask (no RAG yet)."""
+
 import json
 import logging
 import time
@@ -19,8 +20,12 @@ log = logging.getLogger("gymrag.api")
 DISCLAIMER = "Thông tin chỉ mang tính tham khảo, không thay thế bác sĩ hay huấn luyện viên."
 
 Status = Literal[
-    "answered", "corrected_outdated", "contested",
-    "no_answer", "out_of_scope", "safety_refusal",
+    "answered",
+    "corrected_outdated",
+    "contested",
+    "no_answer",
+    "out_of_scope",
+    "safety_refusal",
 ]
 
 
@@ -30,7 +35,7 @@ class AskRequest(BaseModel):
 
 class Citation(BaseModel):
     title: str
-    doc_id: str | None = None          # filled from phase 2 (RAG)
+    doc_id: str | None = None  # filled from phase 2 (RAG)
     url: str | None = None
     published_year: int | None = None
     evidence_level: int | None = None
@@ -89,8 +94,11 @@ def ask(req: AskRequest) -> AskResponse:
         log.error(json.dumps({"event": "llm_error", "request_id": request_id, "error": str(e)}))
         raise HTTPException(503, "Hệ thống đang bận, vui lòng thử lại sau.") from e
     except ValidationError as e:
-        log.error(json.dumps({"event": "bad_llm_output", "request_id": request_id,
-                              "errors": e.error_count()}))
+        log.error(
+            json.dumps(
+                {"event": "bad_llm_output", "request_id": request_id, "errors": e.error_count()}
+            )
+        )
         raise HTTPException(502, "Không đọc được câu trả lời, vui lòng thử lại.") from e
 
     meta = Meta(

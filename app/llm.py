@@ -1,4 +1,5 @@
 """Single gateway to the LLM: timeout, retry, token counting, cost."""
+
 import time
 from dataclasses import dataclass
 
@@ -15,7 +16,7 @@ class LLMError(Exception):
 class LLMResult:
     text: str
     tokens_in: int
-    tokens_out: int      # includes thinking tokens
+    tokens_out: int  # includes thinking tokens
     cost_usd: float
     latency_ms: int
     model: str

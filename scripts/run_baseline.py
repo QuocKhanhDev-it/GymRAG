@@ -1,8 +1,9 @@
 """Phase 1 baseline: send each question in a JSONL file to api /ask and save the answers."""
+
 import json
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 API_URL = "http://localhost:8000/ask"
@@ -21,9 +22,13 @@ def ask(question: str) -> dict:
 
 
 def main() -> None:
-    rows = [json.loads(line) for line in DATASET.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [
+        json.loads(line)
+        for line in DATASET.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     jsonl_path = OUT_DIR / f"baseline_no_rag_{stamp}.jsonl"
     md_path = OUT_DIR / f"baseline_no_rag_{stamp}.md"
 
@@ -39,7 +44,8 @@ def main() -> None:
             md.append(
                 f"## {row['id']} · {row['category']} · {status}\n\n"
                 f"**Q:** {row['question']}\n\n{res.get('answer', res.get('detail'))}\n\n"
-                + "**Sources:**\n" + "".join(f"- {s}\n" for s in sources)
+                + "**Sources:**\n"
+                + "".join(f"- {s}\n" for s in sources)
             )
             print(f"[{row['id']}] {row['category']:<14} -> {status}")
 

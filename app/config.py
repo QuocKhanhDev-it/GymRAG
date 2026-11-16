@@ -1,4 +1,5 @@
 """Load configuration: config.yaml (tunables, in Git) + .env (secrets, per machine)."""
+
 import hashlib
 import json
 from functools import lru_cache
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
 
     llm_base_url: str
-    llm_api_key: SecretStr          # printed as '**********'
+    llm_api_key: SecretStr  # printed as '**********'
     llm_model: str
     price_in_per_m: float = 0.0
     price_out_per_m: float = 0.0

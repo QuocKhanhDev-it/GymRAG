@@ -203,6 +203,8 @@ Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất ti
 - [ ] Viết mục Buổi 3 (API `/ask`) và Buổi 4 (Docker) vào NOTES.md
 - [ ] Giai đoạn 2: prompt mới có `status` `corrected_outdated` (`answer_v1` chưa có, nên 4 câu quan niệm cũ đều ra `answered`)
 - [ ] Giai đoạn 2: xét đưa các tài liệu ứng viên ở mục Buổi 5 vào kho (kiểm tra giấy phép CC BY từng bài)
+- [ ] Chốt phạm vi lập lịch tập: cách A (chỉ nguyên tắc) hay B (sinh lịch + kiểm tra bằng luật), ghi thành ADR (xem mục Mở rộng)
+- [ ] Thí nghiệm 3 câu chia lịch 3 / 4 / 5 buổi, chấm bằng bảng kiểm tự viết
 
 ---
 
@@ -210,4 +212,9 @@ Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất ti
 
 Ý tưởng mới ghi vào đây, **không làm trước khi xong MVP**.
 
-- *(chưa có)*
+- **Tự sinh lịch tập theo số buổi/tuần** (ghi ngày 2026-11-16)
+  - *Quan sát từ kinh nghiệm, chưa đo:* LLM trả lời đúng các câu kiến thức phổ biến (Buổi 5: phản bác 4/4 quan niệm cũ), nhưng **chia lịch tập khá dở**: không đảm bảo mỗi nhóm cơ được tập 2–3 lần/tuần, xếp các bài trùng chức năng, chia theo tên bài tập thay vì theo nhóm cơ, vùng cơ hoặc kiểu chuyển động.
+  - *Vì sao:* lập lịch là bài toán **kết hợp nhiều ràng buộc cùng lúc**, không phải nhớ lại một kết luận. RAG chỉ giúp một phần: đưa được nguyên tắc vào prompt, nhưng không đảm bảo model áp dụng đúng.
+  - *Hướng làm nếu triển khai:* model trả lịch dạng JSON (ngày → bài tập → nhóm cơ → số hiệp); **code kiểm tra bằng luật** (tần suất mỗi nhóm cơ, số hiệp/tuần, không trùng chức năng, có ngày nghỉ); vi phạm thì yêu cầu model sửa. Eval chấm bằng luật nên ổn định hơn dùng LLM chấm.
+  - *Phạm vi:* DESIGN.md mục 1.6 xếp "giáo án cá nhân hoá" vào ngoài phạm vi MVP. Hai cách: **A** (đề xuất) MVP chỉ trả lời **nguyên tắc** lập lịch như kiến thức chung, có nguồn và năm, và thêm các câu này vào bộ eval ở giai đoạn 3; **B** đưa tính năng sinh lịch + kiểm tra bằng luật vào MVP (hay cho portfolio nhưng làm dự án phình ra).
+  - *Việc đầu tiên:* thí nghiệm 3 câu ("chia lịch 3 / 4 / 5 buổi một tuần cho người mới"), chấm bằng bảng kiểm tự viết. Lưu ý `answer_v1` giới hạn 150 từ, nên phải tách lỗi do giới hạn độ dài khỏi lỗi do không hiểu nguyên tắc.
