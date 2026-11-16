@@ -1,3 +1,3 @@
-]633;E;echo "-r requirements.txt";ef41a4d4-6c24-4f82-ba3f-b4bb68e55ba1]633;C-r requirements.txt
+-r requirements.txt
 pytest==9.2.0
 ruff==0.17.5
