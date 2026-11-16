@@ -1,10 +1,8 @@
 """Buổi 1 - Bước 3: gọi LLM lần đầu, in token và chi phí ước tính."""
 import os
 import sys
-
 from dotenv import load_dotenv
 from openai import OpenAI
-
 load_dotenv()  # đọc .env -> biến môi trường
 
 BASE_URL = os.getenv("LLM_BASE_URL")
