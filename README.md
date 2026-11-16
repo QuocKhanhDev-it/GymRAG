@@ -5,3 +5,13 @@ Trọng tâm: pipeline LLMOps kiểm soát chất lượng (eval, quality gate, 
 ## Chạy thử
 1. `cp .env.example .env` rồi điền API key
 2. (sẽ bổ sung dần)
+
+## Run with Docker
+
+```bash
+cp .env.example .env   # then fill in your values
+docker compose up -d --build
+curl -s localhost:8000/health
+```
+
+API docs: http://localhost:8000/docs

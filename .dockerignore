@@ -1,0 +1,12 @@
+# Never ship secrets or local junk into the image
+.env
+.venv/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/
+scripts/
+NOTES.md
+DESIGN.md
