@@ -1,4 +1,4 @@
-"""Đọc cấu hình: config.yaml (tham số, có trong Git) + .env (bí mật, theo từng máy)."""
+"""Load configuration: config.yaml (tunables, in Git) + .env (secrets, per machine)."""
 import hashlib
 import json
 from functools import lru_cache
@@ -8,7 +8,7 @@ import yaml
 from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parent.parent  # thư mục gốc repo
+ROOT = Path(__file__).resolve().parent.parent  # repo root
 
 
 class LLMConfig(BaseModel):
@@ -19,7 +19,7 @@ class LLMConfig(BaseModel):
 
 
 class PromptConfig(BaseModel):
-    version: str = "answer_v0"
+    version: str = "answer_v1"
 
 
 class AppConfig(BaseModel):
@@ -28,18 +28,18 @@ class AppConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    """Đọc từ biến môi trường hoặc file .env (tên biến không phân biệt hoa thường)."""
+    """Read from env vars or .env (names are case-insensitive)."""
 
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
 
     llm_base_url: str
-    llm_api_key: SecretStr          # in ra sẽ thành '**********'
+    llm_api_key: SecretStr          # printed as '**********'
     llm_model: str
     price_in_per_m: float = 0.0
     price_out_per_m: float = 0.0
 
 
-@lru_cache  # chỉ đọc file một lần, các lần sau dùng lại
+@lru_cache  # read the file once, reuse afterwards
 def get_config() -> AppConfig:
     data = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8")) or {}
     return AppConfig(**data)
@@ -55,6 +55,6 @@ def load_prompt(version: str) -> str:
 
 
 def config_hash() -> str:
-    """8 ký tự đại diện cho cấu hình đang chạy, gắn vào kết quả để truy ngược."""
+    """8-char fingerprint of the running config, attached to every result."""
     raw = json.dumps(get_config().model_dump(), sort_keys=True) + get_settings().llm_model
     return hashlib.sha256(raw.encode()).hexdigest()[:8]

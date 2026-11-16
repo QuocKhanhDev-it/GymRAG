@@ -1,4 +1,4 @@
-"""Lớp gọi LLM: một cửa duy nhất, có timeout, retry, đếm token, tính tiền."""
+"""Single gateway to the LLM: timeout, retry, token counting, cost."""
 import time
 from dataclasses import dataclass
 
@@ -8,14 +8,14 @@ from app.config import get_config, get_settings
 
 
 class LLMError(Exception):
-    """Lỗi gọi LLM mà retry không cứu được."""
+    """LLM call failed and retries did not help."""
 
 
 @dataclass
 class LLMResult:
     text: str
     tokens_in: int
-    tokens_out: int      # gồm cả token suy nghĩ
+    tokens_out: int      # includes thinking tokens
     cost_usd: float
     latency_ms: int
     model: str
@@ -29,7 +29,7 @@ class LLMClient:
             base_url=self.settings.llm_base_url,
             api_key=self.settings.llm_api_key.get_secret_value(),
             timeout=self.cfg.timeout_s,
-            max_retries=self.cfg.max_retries,  # SDK tự retry 429/5xx/timeout, có backoff
+            max_retries=self.cfg.max_retries,  # SDK retries 429/5xx/timeouts with backoff
         )
 
     def cost(self, tokens_in: int, tokens_out: int) -> float:
@@ -50,13 +50,13 @@ class LLMClient:
                 max_tokens=self.cfg.max_tokens,
                 **extra,
             )
-        except APIError as e:  # đã retry hết mà vẫn lỗi, hoặc lỗi không đáng retry
-            raise LLMError(f"Gọi LLM thất bại: {type(e).__name__}") from e
+        except APIError as e:  # retries exhausted, or a non-retryable error
+            raise LLMError(f"LLM call failed: {type(e).__name__}") from e
         latency_ms = int((time.perf_counter() - start) * 1000)
 
         text = resp.choices[0].message.content
         if not text:
-            raise LLMError("LLM trả về rỗng (có thể hết max_tokens khi đang suy nghĩ)")
+            raise LLMError("Empty LLM response (max_tokens hit while thinking?)")
 
         u = resp.usage
         tokens_in = u.prompt_tokens
