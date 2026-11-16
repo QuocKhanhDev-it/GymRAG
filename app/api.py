@@ -1,5 +1,5 @@
 """HTTP API: /health and /ask (no RAG yet)."""
-import os  # deliberately unused, to test CI
+
 import json
 import logging
 import time
