@@ -9,7 +9,10 @@
 - [Khái niệm đã học](#khái-niệm-đã-học)
 - [Buổi 1: Gọi LLM lần đầu](#buổi-1-gọi-llm-lần-đầu)
 - [Buổi 2: Lớp gọi LLM và cấu hình](#buổi-2-lớp-gọi-llm-và-cấu-hình)
+- [Buổi 3: API bằng FastAPI](#buổi-3-api-bằng-fastapi)
+- [Buổi 4: Docker và Docker Compose](#buổi-4-docker-và-docker-compose)
 - [Buổi 5: Baseline không có RAG](#buổi-5-baseline-không-có-rag)
+- [Buổi 6: Test, ruff và CI](#buổi-6-test-ruff-và-ci)
 - [Ước tính chi phí eval](#ước-tính-chi-phí-eval)
 - [Sự cố đã gặp](#sự-cố-đã-gặp)
 - [Việc còn dở](#việc-còn-dở)
@@ -24,6 +27,7 @@
 | Máy | Windows 11, RAM 15,5 GB (máy yếu, không chạy model local) |
 | Linux | WSL2 Ubuntu 26.04, ổ đĩa ảo ở `D:\WSL\Ubuntu`, giới hạn 4 GB RAM + 2 GB swap (`~/.wslconfig` bên Windows) |
 | Python | 3.12 trong `.venv` tạo bằng `uv` → cài gói bằng `uv pip install`, không có `pip` |
+| Docker | Docker Desktop (backend WSL2); chỉ bật khi cần vì tốn RAM |
 | LLM | `models/gemini-3.5-flash-lite`, gọi qua endpoint tương thích OpenAI bằng SDK `openai` |
 | Giá dùng để ước tính | 0,30 USD / 1 triệu token vào · 2,50 USD / 1 triệu token ra (giá gói trả phí, tự tra; thực tế đang dùng gói miễn phí) |
 
@@ -45,6 +49,23 @@
 | 2 | Pydantic Settings, `SecretStr` | Đọc `.env` và kiểm tra kiểu ngay khi khởi động. `SecretStr` in ra thành `**********` | Key không lộ khi `print` hay ghi log |
 | 2 | Lớp gọi LLM riêng | Mọi chỗ gọi LLM đi qua một cửa (`app/llm.py`) | Sửa timeout, đổi hãng, thêm log chỉ ở một chỗ; test chỉ cần mock một chỗ (Buổi 6) |
 | 2 | `config_hash` | 8 ký tự đại diện cho cấu hình đang chạy | Gắn vào mọi kết quả eval để biết điểm đó ứng với cấu hình nào |
+| 3 | HTTP API, status code | Chương trình khác gọi vào một địa chỉ (`POST /ask`) và nhận JSON. 2xx là ổn, 4xx là phía gọi gửi sai, 5xx là phía server lỗi | Gradio, eval và CI dùng chung một cửa |
+| 3 | FastAPI | Thư viện viết API bằng Python; tự kiểm tra dữ liệu vào và tự sinh trang `/docs` | `app/api.py` |
+| 3 | Pydantic | Khai báo hình dạng dữ liệu bằng class; dữ liệu sai thì báo lỗi rõ ràng | `AskRequest`, `AskResponse`, `LLMAnswer` |
+| 3 | Không tin đầu ra của LLM | Luôn kiểm tra JSON của model trước khi dùng | JSON hỏng → 502 |
+| 3 | Log có cấu trúc + `request_id` | Mỗi request ghi một dòng log JSON, có một mã riêng | Tính p95, chi phí theo ngày; tra lỗi theo mã |
+| 4 | Docker, image, container | Đóng gói môi trường + code. Image là gói đã đóng; container là một lần chạy của image | Máy bạn, CI, VM chạy cùng một image |
+| 4 | Dockerfile, layer cache | Công thức build image; bước không đổi thì Docker dùng lại kết quả cũ | Cài thư viện trước, chép code sau |
+| 4 | Docker Compose | File mô tả cách chạy một hoặc nhiều container; một lệnh `docker compose up` | Giai đoạn 2 thêm container `qdrant` |
+| 4 | Bí mật trong container | `.env` không bao giờ vào image; được đưa vào lúc chạy bằng `env_file` | Image đẩy lên GHCR không làm lộ key |
+| 5 | Knowledge cutoff | Trí nhớ model dừng ở một ngày, và model học cả các quan niệm sai phổ biến | Lý do cần kho tài liệu có năm |
+| 5 | Hallucination, nguồn bịa | Thông tin nghe hợp lý nhưng sai. Nguồn có thật nhưng không nói điều model khẳng định là loại khó phát hiện nhất | `citations` chỉ lấy từ kho tài liệu (giai đoạn 2) |
+| 5 | Baseline | Kết quả của bản đơn giản nhất, dùng làm mốc so sánh | Hỏi lại 10 câu này ở giai đoạn 2 |
+| 5 | JSONL | Mỗi dòng là một JSON độc lập; dễ thêm câu, dễ review trong Git | `evals/datasets/*.jsonl` |
+| 6 | pytest | Thư viện viết và chạy test; mỗi hàm `test_...` là một test | Thư mục `tests/` |
+| 6 | Mock | Vật thế thân cho phần thật (`FakeLLM` thay cho Gemini) | Test nhanh, miễn phí, không cần key |
+| 6 | Ruff | Linter (tìm lỗi, thói quen xấu) + formatter (định dạng thống nhất) | CI chặn code sai chuẩn |
+| 6 | GitHub Actions, status check | GitHub tự chạy lệnh khi có PR; kết quả ✅/❌ có thể chặn merge | `ci.yml`, quality gate đầu tiên |
 
 ---
 
@@ -117,6 +138,58 @@ Câu hỏi: *"Người mới tập gym nên tập mấy buổi một tuần? Tr�
 
 ---
 
+## Buổi 3: API bằng FastAPI
+
+**Ngày:** 2026-11-15 · **Commit:** `00c325b` (PR #2)
+
+**Làm gì:**
+- `app/api.py`: `GET /health` và `POST /ask`. Request được kiểm tra bằng Pydantic (`AskRequest`: câu hỏi dài 3–500 ký tự). Response theo hợp đồng trong DESIGN.md mục 4.2: `answer`, `citations`, `status`, `disclaimer`, `meta`.
+- JSON của LLM được kiểm tra lại bằng `LLMAnswer` trước khi dùng.
+- Mỗi request ghi một dòng log JSON có `request_id` (mã này cũng nằm trong `meta`).
+- Prompt `answer_v1` (viết tiếng Anh, yêu cầu trả lời tiếng Việt). `answer_v0` giữ nguyên, không sửa đè.
+
+**Mã lỗi:**
+
+| Tình huống | Mã | Đã gọi LLM chưa? |
+|---|---|---|
+| Câu hỏi sai định dạng, quá ngắn hoặc thiếu trường | 422 | Chưa → không tốn token |
+| Gemini lỗi, đã retry hết | 503 | Đã thử gọi |
+| LLM trả JSON hỏng hoặc `status` lạ | 502 | Đã gọi → **đã tốn tiền** dù câu trả lời bị bỏ |
+
+**Kết quả:**
+- `curl /ask` trả JSON đúng hợp đồng; cả 10 câu ở Buổi 5 đều đi qua `/ask` thành công.
+- Các nhánh 422, 502, 503 được kiểm tra tự động bằng test ở Buổi 6.
+
+**Rút ra:**
+- API là "một cửa" chung cho giao diện, script eval và CI, nên thứ được chấm điểm chính là thứ người dùng nhận được. API key chỉ nằm trên server.
+- `api.py` không gọi Gemini; chỉ `llm.py` làm việc đó. `api.py` ↔ `llm.py` là gọi hàm trong cùng chương trình; `llm.py` ↔ Gemini là gọi qua Internet (chậm, tốn tiền, hay lỗi).
+- `citations` lúc này chỉ là tên nguồn model tự nhớ ra, **không đáng tin** (xem Buổi 5). Hình dạng đã sẵn cho `doc_id` và năm ở giai đoạn 2.
+
+---
+
+## Buổi 4: Docker và Docker Compose
+
+**Ngày:** 2026-11-16 · **Commit:** `8d6c670` (PR #3); dịch nốt comment `682ca09` (PR #4)
+
+**Làm gì:**
+- `Dockerfile`: `python:3.12-slim` → cài `requirements.txt` → chép `config.yaml`, `prompts/`, `app/` → chạy bằng user thường → `uvicorn app.api:app --host 0.0.0.0 --port 8000`.
+- `.dockerignore`: chặn `.env`, `.venv/`, `.git/`, `tests/`, `scripts/`…
+- `docker-compose.yml`: service `api`, `env_file: .env`, cổng `8000:8000`, `restart: unless-stopped`, healthcheck gọi `/health` mỗi 30 giây bằng Python (image slim không có `curl`).
+
+**Kết quả:**
+- Image `gymrag-api:dev`: **245 MB**.
+- `docker compose up -d` chạy được; 10 câu ở Buổi 5 chạy qua chính container này.
+- Image **không chứa `.env`** (kiểm tra bằng `docker run --rm gymrag-api:dev ls -a /app`).
+- Chỉ sửa code rồi build lại thì bước `pip install` hiện `CACHED`.
+
+**Rút ra:**
+- Image chứa **môi trường + code**. **Bí mật và thứ riêng từng máy** (`.env`: key, tên model, giá) được đưa vào lúc chạy. Model Gemini không nằm trong image; nó chạy trên server của Google.
+- Dockerfile là công thức để **build** image; Compose mô tả cách **chạy** container (cổng, biến môi trường, healthcheck, khởi động lại).
+- Thứ tự trong Dockerfile quan trọng: thư viện trước, code sau, để tận dụng layer cache.
+- Docker Desktop tốn RAM: chỉ bật khi cần; xong thì `docker compose down` và Quit.
+
+---
+
 ## Buổi 5: Baseline không có RAG
 
 **Ngày:** 2026-11-16 · **Model:** `models/gemini-3.5-flash-lite` · **Prompt:** `answer_v1` · **`config_hash`:** `4ad55237`
@@ -167,6 +240,38 @@ Câu hỏi: *"Người mới tập gym nên tập mấy buổi một tuần? Tr�
 
 ---
 
+## Buổi 6: Test, ruff và CI
+
+**Ngày:** 2026-11-16 · **Commit:** `6c3c005` (PR #6)
+
+**Làm gì:**
+- `requirements-dev.txt` (pytest, ruff) và `pyproject.toml` (cấu hình ruff và pytest).
+- Ruff: lint (`E, W, F, I, B, UP`) và format toàn bộ code.
+- Test với LLM giả (`FakeLLM` thay cho `get_llm()`): không gọi mạng, không cần API key.
+  - `tests/conftest.py`: fixture đặt biến môi trường giả cho mọi test.
+  - `tests/test_api.py` (9 lượt chạy): `/health`, hợp đồng JSON của `/ask`, 422 với 3 kiểu request sai (và LLM **không bị gọi**), 503, 502 với 3 kiểu JSON hỏng.
+  - `tests/test_config.py` (4): `config.yaml` đọc được, file prompt đang dùng có tồn tại, `config_hash` ổn định, cách tính tiền.
+- `.github/workflows/ci.yml`: chạy khi mở PR và khi push vào `main`; 2 job **Lint and test** và **Docker build**; không cần secret nào.
+
+**Kết quả:**
+
+| | Giá trị |
+|---|---|
+| Test trên máy | 13 passed trong 0,50 s |
+| CI trên PR #6 | 3 lần chạy: 2 lần đỏ (2 lỗi ở mục Sự cố đã gặp), lần thứ 3 xanh (29 s) |
+| CI trên `main` sau merge | Xanh (21 s) |
+| Bắt buộc CI xanh mới được merge | đã bật cho Lint and test và Docker build chưa?|
+| Thí nghiệm cố tình làm CI đỏ | Lint and test ❌ (ruff F401: os không dùng), nút merge bị khoá; sửa lại thì xanh |
+
+**Rút ra:**
+- CI chạy trên một máy **sạch**, nên bắt được lỗi mà máy mình che mất. Cả 2 lần đỏ đều do **môi trường** (mã ẩn trong file, test lặng lẽ đọc `.env` thật), không phải do logic.
+- Test phải **không phụ thuộc vào máy**. Chạy thử giống CI: `mv .env ~/.gymrag.env.bak && pytest -q; mv ~/.gymrag.env.bak .env`.
+- Thiết kế "một cửa" ở Buổi 2 làm mock rất dễ: chỉ cần thay `get_llm()`.
+- Test 422 kiểm tra luôn `fake.calls == 0`: request sai bị chặn trước khi tốn token.
+- Từ giờ CI là người duyệt PR. Giai đoạn 4 sẽ thêm eval vào đúng chỗ này.
+
+---
+
 ## Ước tính chi phí eval
 
 Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất tiền, nhưng **bị giới hạn số request**.
@@ -189,6 +294,9 @@ Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất ti
 | 2026-11-13 | Ổ C còn 17 GB | Ổ đĩa ảo WSL nằm trên C | `wsl --export` để sao lưu, rồi `wsl --manage Ubuntu --move D:\WSL\Ubuntu`. Đường dẫn trong Linux giữ nguyên |
 | 2026-11-15 | `code .` báo `Segmentation fault`; "VS Code Server for WSL closed unexpectedly" | WSL bị tắt khi VS Code đang kết nối; VS Code Server bị hỏng | `rm -rf ~/.vscode-server` rồi `code .` để cài lại |
 | 2026-11-15 | `python scripts/try_llm.py` báo `No module named 'app'` | Chạy theo đường dẫn file thì Python chỉ tìm trong `scripts/` | Chạy `python -m scripts.try_llm` từ thư mục gốc |
+| 2026-11-16 | WSL ngừng phản hồi (`Wsl/Service/WSAETIMEDOUT`) | Windows lại gần hết bộ nhớ cam kết (28,5 / 30,5 GB); Docker Desktop vẫn chạy sau khi xong việc | Quit Docker Desktop, đóng app không cần. Chỉ bật Docker khi dùng |
+| 2026-11-16 | CI: `pip install -r requirements-dev.txt` báo `Invalid requirement: '\x1b]633'` | Lệnh `{ echo ...; ...; } > file` chạy trong terminal VS Code: tính năng shell integration chèn mã ẩn `]633` vào file | Tạo lại file bằng một lệnh đơn (`printf`) hoặc sửa tay; kiểm tra bằng `cat -v` |
+| 2026-11-16 | CI: 3 test hỏng vì `Settings` thiếu `llm_base_url`…, trong khi trên máy qua hết | `tests/conftest.py` rỗng (0 byte); trên máy, test lặng lẽ đọc `.env` thật | Viết lại fixture. Chạy test giống CI: `mv .env ~/.gymrag.env.bak && pytest -q; mv ~/.gymrag.env.bak .env` |
 
 ---
 
@@ -200,11 +308,14 @@ Tính theo giá gói trả phí ở trên. Gói miễn phí thì không mất ti
 - [x] Push lên GitHub (từ PR #1, mọi thay đổi đi qua PR)
 - [x] Đo lại độ trễ trên 10 câu (Buổi 5): 0,9–1,6 s → câu 9,5 s ở Buổi 2 là ngoại lệ
 - [ ] Xoá bản sao lưu `D:\WSL\backup\ubuntu.tar` khi WSL đã chạy ổn định vài hôm
-- [ ] Viết mục Buổi 3 (API `/ask`) và Buổi 4 (Docker) vào NOTES.md
+- [x] Viết mục Buổi 3, 4, 6 vào NOTES.md
 - [ ] Giai đoạn 2: prompt mới có `status` `corrected_outdated` (`answer_v1` chưa có, nên 4 câu quan niệm cũ đều ra `answered`)
 - [ ] Giai đoạn 2: xét đưa các tài liệu ứng viên ở mục Buổi 5 vào kho (kiểm tra giấy phép CC BY từng bài)
 - [ ] Chốt phạm vi lập lịch tập: cách A (chỉ nguyên tắc) hay B (sinh lịch + kiểm tra bằng luật), ghi thành ADR (xem mục Mở rộng)
 - [ ] Thí nghiệm 3 câu chia lịch 3 / 4 / 5 buổi, chấm bằng bảng kiểm tự viết
+- [x] Bật bắt buộc CI xanh cho `main` (Lint and test, Docker build), điền kết quả vào Buổi 6
+- [x] Thí nghiệm cố tình làm CI đỏ, điền kết quả vào Buổi 6
+- [ ] README: badge CI và mục Development
 
 ---
 
